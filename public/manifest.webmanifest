@@ -1,0 +1,15 @@
+{
+  "name": "SocietyOS Gate Desk",
+  "short_name": "Gate Desk",
+  "description": "Log visitors at the gate — no login friction, works one-handed.",
+  "start_url": "/guard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3ede1",
+  "theme_color": "#3b2418",
+  "icons": [
+    { "src": "/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

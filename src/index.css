@@ -1,0 +1,310 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-serif: "IBM Plex Serif", Georgia, serif;
+
+  /* Ink — brand / primary text / chrome: cool slate-blue, Gazette register */
+  --color-ink-950: #0d1a2b;
+  --color-ink-900: #16273f;
+  --color-ink-800: #203355;
+  --color-ink-700: #37507a;
+  --color-ink-500: #5f7a9e;
+  --color-ink-300: #9fb2c9;
+  --color-ink-100: #dde5ee;
+
+  /* Paper — surfaces: cool white, crisp */
+  --color-paper-0: #ffffff;
+  --color-paper-50: #f3f6fa;
+  --color-paper-100: #e7ecf3;
+  --color-paper-200: #d2dbe6;
+
+  /* Stamp — teal, verified/paid/approved */
+  --color-stamp-700: #0e5c53;
+  --color-stamp-600: #15756a;
+  --color-stamp-500: #1c8f81;
+  --color-stamp-100: #d7ede9;
+
+  /* Amber — brass/mustard, pending */
+  --color-amber-700: #7a5511;
+  --color-amber-600: #9c6f18;
+  --color-amber-500: #c28f20;
+  --color-amber-100: #f2e4c3;
+
+  /* Rust — crimson, overdue/urgent */
+  --color-rust-700: #75121f;
+  --color-rust-600: #961a29;
+  --color-rust-500: #b62638;
+  --color-rust-100: #f3d7dc;
+
+  /* Chrome — always-dark UI surfaces (sidebar, primary buttons, header, hero overlays) */
+  --color-chrome-950: #0d1a2b;
+  --color-chrome-900: #16273f;
+  --color-chrome-800: #203355;
+}
+
+html {
+  color-scheme: light;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-paper-50);
+  color: var(--color-ink-900);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ledger-paper texture: faint horizontal rule lines, used on registry surfaces */
+.bg-ledger {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 27px,
+    var(--color-paper-200) 28px
+  );
+  background-attachment: local;
+}
+
+::selection {
+  background: var(--color-stamp-100);
+  color: var(--color-ink-900);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ink-700);
+  outline-offset: 2px;
+}
+
+/* entrance: used on dashboard tiles/cards, staggered via nth-child in place */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-rise-in {
+  animation: rise-in 260ms ease-out backwards;
+}
+
+/* modal: backdrop fade + panel rise/scale on open */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 180ms ease-out;
+}
+
+.animate-modal-in {
+  animation: modal-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* scroll reveal: toggled by IntersectionObserver, see src/lib/useReveal.ts */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 600ms ease-out,
+    transform 600ms ease-out;
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* directional reveal variants — same IntersectionObserver toggle (useReveal), different entry direction */
+.reveal-left,
+.reveal-right,
+.reveal-scale {
+  opacity: 0;
+  transition:
+    opacity 650ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 650ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal-left {
+  transform: translateX(-32px);
+}
+.reveal-right {
+  transform: translateX(32px);
+}
+.reveal-scale {
+  transform: scale(0.94) translateY(12px);
+}
+.reveal-left.is-visible,
+.reveal-right.is-visible,
+.reveal-scale.is-visible {
+  opacity: 1;
+  transform: translate(0, 0) scale(1);
+}
+
+/* headline wipe — for short, single-line display headlines only (multi-line clip-path reads poorly) */
+.reveal-wipe {
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 750ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+.reveal-wipe.is-visible {
+  clip-path: inset(0 0 0 0);
+}
+
+/* slow ambient zoom for full-bleed section imagery */
+@keyframes kenburns {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.08);
+  }
+}
+.animate-kenburns {
+  animation: kenburns 16s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-left,
+  .reveal-right,
+  .reveal-scale,
+  .reveal-wipe {
+    transition: none !important;
+  }
+  .animate-kenburns {
+    animation: none !important;
+  }
+}
+
+/* infinite marquee strips — see src/components/ui/MarqueeStrip.tsx */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes marquee-reverse {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.animate-marquee {
+  animation-name: marquee;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.animate-marquee-reverse {
+  animation-name: marquee-reverse;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee,
+  .animate-marquee-reverse {
+    animation: none !important;
+  }
+}
+
+/*
+ * Page navigation — see src/components/ui/NavTransition.tsx, which wraps
+ * every Link/NavLink click in document.startViewTransition(). Soft
+ * crossfade with a touch of scale/drift on both the outgoing and incoming
+ * page, rather than a flat fade or a full slide — chosen after trying it
+ * live against the other candidates.
+ */
+@keyframes page-soft-out {
+  to {
+    transform: scale(0.98) translateY(-6px);
+    opacity: 0;
+  }
+}
+
+@keyframes page-soft-in {
+  from {
+    transform: scale(0.98) translateY(6px);
+    opacity: 0;
+  }
+}
+
+::view-transition-old(root) {
+  animation: 220ms ease-out both page-soft-out;
+}
+
+::view-transition-new(root) {
+  animation: 220ms ease-out both page-soft-in;
+}
+
+/*
+ * Persistent app chrome (sidebar, header, footer, bottom nav) opts out of
+ * the page-navigation animation above — it doesn't change between routes,
+ * so it should just stay put instead of fading with the content. Giving it
+ * its own view-transition-name pulls it out of the ::view-transition-old/
+ * new(root) snapshot; animation:none + mix-blend-mode:normal makes the new
+ * (identical) frame sit opaque on top of the old one with no flash.
+ */
+.vt-app-sidebar {
+  view-transition-name: app-sidebar;
+}
+.vt-app-header {
+  view-transition-name: app-header;
+}
+.vt-app-footer {
+  view-transition-name: app-footer;
+}
+.vt-app-bottom-nav {
+  view-transition-name: app-bottom-nav;
+}
+
+::view-transition-old(app-sidebar),
+::view-transition-new(app-sidebar),
+::view-transition-old(app-header),
+::view-transition-new(app-header),
+::view-transition-old(app-footer),
+::view-transition-new(app-footer),
+::view-transition-old(app-bottom-nav),
+::view-transition-new(app-bottom-nav) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}

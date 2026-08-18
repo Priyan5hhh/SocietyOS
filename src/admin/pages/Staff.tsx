@@ -1,0 +1,179 @@
+import { useEffect, useState } from "react"
+import { Plus, AlertCircle } from "lucide-react"
+import { PageHeader } from "@/admin/components/PageHeader"
+import { Card } from "@/components/ui/Card"
+import { TableSkeleton } from "@/components/ui/Skeleton"
+import { Button } from "@/components/ui/Button"
+import { Input, Label, Select } from "@/components/ui/Input"
+import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/Table"
+import { Stamp } from "@/components/ui/Stamp"
+import { Modal } from "@/components/ui/Modal"
+import { formatDate } from "@/lib/utils"
+import { api } from "@/lib/services/api"
+
+interface StaffMember {
+  id: string
+  name: string
+  role: "admin" | "guard"
+  phone: string | null
+  active: boolean
+  created_at: string
+}
+
+function randomPassword() {
+  return Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 6).toUpperCase() + "!1"
+}
+
+function emptyForm() {
+  return { name: "", email: "", role: "guard" as "admin" | "guard", password: randomPassword() }
+}
+
+export default function Staff() {
+  const [staff, setStaff] = useState<StaffMember[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  const [modalOpen, setModalOpen] = useState(false)
+  const [form, setForm] = useState(emptyForm())
+  const [createdCreds, setCreatedCreds] = useState<{ email: string; password: string } | null>(null)
+
+  async function load() {
+    setLoading(true)
+    setError(null)
+    try {
+      const { staff } = await api.get<{ staff: StaffMember[] }>("/api/staff")
+      setStaff(staff)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load staff")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  function openAdd() {
+    setForm(emptyForm())
+    setCreatedCreds(null)
+    setModalOpen(true)
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    setError(null)
+    try {
+      await api.post("/api/staff", form)
+      setCreatedCreds({ email: form.email, password: form.password })
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add staff member")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div>
+      <PageHeader
+        title="Staff"
+        description="Admins and guards with access to this society."
+        action={
+          <Button onClick={openAdd}>
+            <Plus size={16} /> Add staff
+          </Button>
+        }
+      />
+      <div className="p-8">
+        {error && (
+          <div className="mb-4 flex items-start gap-2 rounded-lg border-2 border-rust-500 bg-rust-100 p-3 text-sm text-rust-700">
+            <AlertCircle size={16} className="mt-0.5 shrink-0" />
+            {error}
+          </div>
+        )}
+
+        <Card>
+          {loading ? (
+            <TableSkeleton rows={4} cols={4} />
+          ) : (
+            <Table>
+              <Thead>
+                <tr>
+                  <Th>Name</Th>
+                  <Th>Role</Th>
+                  <Th>Phone</Th>
+                  <Th>Joined</Th>
+                </tr>
+              </Thead>
+              <Tbody>
+                {staff.map((s) => (
+                  <Tr key={s.id}>
+                    <Td className="font-medium">{s.name}</Td>
+                    <Td>
+                      <Stamp tone={s.role === "admin" ? "stamp" : "ink"}>{s.role}</Stamp>
+                    </Td>
+                    <Td className="text-ink-500">{s.phone ?? "—"}</Td>
+                    <Td className="text-ink-500">{formatDate(s.created_at)}</Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          )}
+        </Card>
+      </div>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add staff">
+        {createdCreds ? (
+          <div className="space-y-4">
+            <p className="text-sm text-ink-700">
+              Account created. Share these credentials with them — this password won't be shown again.
+            </p>
+            <div className="rounded-lg border border-ink-100 bg-paper-100 p-4 font-mono text-sm">
+              <div>{createdCreds.email}</div>
+              <div>{createdCreds.password}</div>
+            </div>
+            <div className="flex justify-end">
+              <Button type="button" onClick={() => setModalOpen(false)}>
+                Done
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSave} className="space-y-4">
+            <div>
+              <Label htmlFor="st-name">Full name</Label>
+              <Input id="st-name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div>
+              <Label htmlFor="st-email">Email</Label>
+              <Input id="st-email" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            </div>
+            <div>
+              <Label htmlFor="st-role">Role</Label>
+              <Select id="st-role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as "admin" | "guard" })}>
+                <option value="guard">Security Guard</option>
+                <option value="admin">Admin / Accountant</option>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="st-password">Temporary password</Label>
+              <Input id="st-password" required minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+              <p className="mt-1 text-xs text-ink-500">Auto-generated — feel free to change it.</p>
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Creating…" : "Create account"}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+    </div>
+  )
+}
