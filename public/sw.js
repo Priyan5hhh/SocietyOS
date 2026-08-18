@@ -1,5 +1,5 @@
 const CACHE = "societyos-gate-v1"
-const SHELL = ["/guard", "/manifest.webmanifest", "/icon.svg"]
+const SHELL = ["/guard", "/manifest.webmanifest", "/icon.png"]
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)))
