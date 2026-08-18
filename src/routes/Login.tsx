@@ -4,7 +4,7 @@ import { LinkTransition } from "@/components/ui/NavTransition"
 import { AlertCircle } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/Button"
-import { Input, Label } from "@/components/ui/Input"
+import { Input, Label, PasswordInput } from "@/components/ui/Input"
 import { AuthHero } from "@/components/ui/AuthHero"
 import { AuthChrome } from "@/components/ui/AuthChrome"
 import { Logo } from "@/components/ui/Logo"
@@ -83,9 +83,8 @@ export default function Login() {
 
           <div className="mb-6">
             <Label htmlFor="password">Password</Label>
-            <Input
+            <PasswordInput
               id="password"
-              type="password"
               required
               autoComplete="current-password"
               value={password}

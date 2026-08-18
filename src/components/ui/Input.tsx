@@ -1,5 +1,5 @@
-import { type InputHTMLAttributes, type TextareaHTMLAttributes, type SelectHTMLAttributes, forwardRef } from "react"
-import { ChevronDown } from "lucide-react"
+import { type InputHTMLAttributes, type TextareaHTMLAttributes, type SelectHTMLAttributes, forwardRef, useState } from "react"
+import { ChevronDown, Eye, EyeOff } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const fieldClass =
@@ -11,6 +11,32 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
   ),
 )
 Input.displayName = "Input"
+
+export const PasswordInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
+  ({ className, ...props }, ref) => {
+    const [visible, setVisible] = useState(false)
+    return (
+      <div className="relative">
+        <input
+          ref={ref}
+          type={visible ? "text" : "password"}
+          className={cn(fieldClass, "h-11 pr-10 text-sm", className)}
+          {...props}
+        />
+        <button
+          type="button"
+          onClick={() => setVisible((v) => !v)}
+          aria-label={visible ? "Hide password" : "Show password"}
+          tabIndex={-1}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-700"
+        >
+          {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      </div>
+    )
+  },
+)
+PasswordInput.displayName = "PasswordInput"
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(
   ({ className, ...props }, ref) => (

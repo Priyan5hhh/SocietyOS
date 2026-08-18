@@ -2,7 +2,7 @@ import { useState } from "react"
 import { LinkTransition } from "@/components/ui/NavTransition"
 import { AlertCircle, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/Button"
-import { Input, Label } from "@/components/ui/Input"
+import { Input, Label, PasswordInput } from "@/components/ui/Input"
 import { AuthHero } from "@/components/ui/AuthHero"
 import { AuthChrome } from "@/components/ui/AuthChrome"
 import { Logo } from "@/components/ui/Logo"
@@ -119,9 +119,8 @@ export default function Signup() {
 
             <div className="mb-6">
               <Label htmlFor="password">Password</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 required
                 minLength={8}
                 autoComplete="new-password"
