@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Vote, Plus, AlertCircle, PlayCircle, StopCircle, BarChart3 } from "lucide-react"
+import { Vote, Plus, AlertCircle, PlayCircle, StopCircle, BarChart3, Ban } from "lucide-react"
 import { PageHeader } from "@/admin/components/PageHeader"
 import { Card } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
@@ -59,6 +59,9 @@ export default function Elections() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
+  const [confirmCancel, setConfirmCancel] = useState<Election | null>(null)
+  const [cancelling, setCancelling] = useState(false)
+
   async function load() {
     setLoading(true)
     setError(null)
@@ -116,24 +119,20 @@ export default function Elections() {
       if (names.length < 2) {
         throw new Error("Add at least two candidates.")
       }
-      const { data: election, error: eErr } = await sb
-        .from("elections")
-        .insert({
-          society_id: societyId,
-          title,
-          description: description || null,
-          voting_opens_at: new Date(opensAt).toISOString(),
-          voting_closes_at: new Date(closesAt).toISOString(),
-          created_by_staff_id: staffId,
-        })
-        .select()
-        .single()
-      if (eErr) throw eErr
-
-      const { error: cErr } = await sb.from("election_candidates").insert(
-        names.map((name, i) => ({ election_id: election.id, society_id: societyId, name, display_order: i })),
-      )
-      if (cErr) throw cErr
+      // Single-transaction RPC: the election row and all candidate rows are
+      // inserted in one plpgsql function body, so a failure partway through
+      // rolls back the whole thing instead of leaving an election with zero
+      // candidates.
+      const { error: rpcErr } = await sb.rpc("admin_create_election", {
+        p_society_id: societyId,
+        p_staff_id: staffId,
+        p_title: title,
+        p_description: description || null,
+        p_opens_at: new Date(opensAt).toISOString(),
+        p_closes_at: new Date(closesAt).toISOString(),
+        p_candidate_names: names,
+      })
+      if (rpcErr) throw rpcErr
 
       setModalOpen(false)
       await load()
@@ -152,6 +151,17 @@ export default function Elections() {
       await load()
     } catch (err) {
       setError(errorMessage(err, "Failed to update election"))
+    }
+  }
+
+  async function handleCancelElection() {
+    if (!confirmCancel) return
+    setCancelling(true)
+    try {
+      await setStatus(confirmCancel, "cancelled")
+      setConfirmCancel(null)
+    } finally {
+      setCancelling(false)
     }
   }
 
@@ -207,6 +217,11 @@ export default function Elections() {
                     {el.status === "open" && (
                       <Button size="sm" variant="secondary" onClick={() => setStatus(el, "closed")}>
                         <StopCircle size={14} /> Close voting
+                      </Button>
+                    )}
+                    {(el.status === "draft" || el.status === "open") && (
+                      <Button size="sm" variant="danger" onClick={() => setConfirmCancel(el)}>
+                        <Ban size={14} /> Cancel election
                       </Button>
                     )}
                   </div>
@@ -290,6 +305,24 @@ export default function Elections() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal open={!!confirmCancel} onClose={() => setConfirmCancel(null)} title="Cancel election">
+        <div className="space-y-4">
+          <p className="text-sm text-ink-700">
+            Cancel <strong>{confirmCancel?.title}</strong>? Voting stops immediately — residents will no longer see it in
+            their vote list. Any votes already cast are not counted, and no results will ever be shown for this election.
+            This can't be undone.
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="secondary" onClick={() => setConfirmCancel(null)}>
+              Keep election
+            </Button>
+            <Button type="button" variant="danger" onClick={handleCancelElection} disabled={cancelling}>
+              {cancelling ? "Cancelling…" : "Cancel election"}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   )
