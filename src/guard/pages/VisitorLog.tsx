@@ -15,6 +15,7 @@ interface Visitor {
   phone: string
   purpose: string
   photo_imagekit_url: string | null
+  notes: string | null
   pre_approved: boolean
   check_in_at: string
   check_out_at: string | null
@@ -119,6 +120,7 @@ export default function VisitorLog() {
                     <span className="rounded bg-paper-100 px-2 py-0.5 font-medium">{purposeLabel[v.purpose]}</span>
                     {v.units && <span className="font-mono">{v.units.block}-{v.units.unit_number}</span>}
                   </div>
+                  {v.notes && <div className="mt-1.5 text-xs italic text-ink-500">"{v.notes}"</div>}
                 </div>
               </div>
               <div className="mt-3 flex items-center justify-between border-t border-ink-100 pt-3 text-xs text-ink-500">

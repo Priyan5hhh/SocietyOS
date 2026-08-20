@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowLeft, UserPlus, AlertCircle, Clock, CheckCircle2 } from "lucide-react"
+import { ArrowLeft, UserPlus, AlertCircle, Clock, CheckCircle2, Home } from "lucide-react"
 import { Card } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { Input, Label } from "@/components/ui/Input"
@@ -200,7 +200,7 @@ export default function PreApprovals() {
 
       <nav className="fixed inset-x-0 bottom-0 flex items-center justify-around border-t border-ink-100 bg-white py-2">
         <button type="button" onClick={() => navigate("/resident")} className="flex flex-col items-center gap-0.5 px-4 py-1 text-ink-400">
-          <ArrowLeft size={18} />
+          <Home size={18} />
           <span className="text-[10px]">Home</span>
         </button>
       </nav>

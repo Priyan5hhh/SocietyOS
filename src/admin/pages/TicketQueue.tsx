@@ -14,6 +14,7 @@ import { queueReminder, listReminders, latestByTarget, type Reminder } from "@/l
 import { useTicketDraft, TICKET_CREATED_EVENT_NAME } from "@/admin/context/TicketDraftContext"
 import { useCachedFetch } from "@/lib/useCachedFetch"
 import { errorMessage } from "@/lib/utils"
+import { useAuth } from "@/lib/auth-context"
 
 type TicketStatus = "new" | "assigned" | "in_progress" | "resolved" | "reopened"
 type TicketPriority = "low" | "medium" | "high"
@@ -62,6 +63,8 @@ const MAX_AI_FLAG_BATCH = 30
 const EMPTY_URGENT_FLAGS = new Map<string, string>()
 
 export default function TicketQueue() {
+  const { session } = useAuth()
+  const societyId = session?.kind === "staff" ? session.society_id : "anon"
   const draft = useTicketDraft()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
@@ -127,7 +130,7 @@ export default function TicketQueue() {
     loading: urgentFlagsLoading,
     refresh: refreshUrgentFlags,
   } = useCachedFetch(
-    "tickets-ai-priority-flags",
+    `tickets-ai-priority-flags:${societyId}`,
     async () => {
       const now = Date.now()
       const stale = tickets

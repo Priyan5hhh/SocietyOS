@@ -18,6 +18,7 @@ interface LedgerEntry {
   description: string
   balance_after: number
   created_at: string
+  seq: number
 }
 
 interface UnitLabel {
@@ -77,7 +78,11 @@ export default function Ledger() {
       const sb = getStaffSupabase()
       const { societyId } = getStaffClaims()
       const [{ data: entryData, error: eErr }, { data: unitData, error: uErr }] = await Promise.all([
-        sb.from("ledger_entries").select("*").order("created_at", { ascending: false }).limit(1000),
+        // Ordered by `seq`, not `created_at` — created_at can be a backdated,
+        // date-only business date (a payment's settled_at), so it isn't
+        // reliable for finding the most recent entry per unit. `seq` reflects
+        // rebuild_ledger()'s true chronological insertion order.
+        sb.from("ledger_entries").select("*").order("seq", { ascending: false }).limit(1000),
         sb.from("units").select("id, block, unit_number").eq("society_id", societyId ?? ""),
       ])
       if (eErr) throw eErr
@@ -149,8 +154,8 @@ export default function Ledger() {
         )}
 
         {balances.size > 0 && (
-          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {Array.from(balances.entries()).slice(0, 8).map(([unitId, bal]) => {
+          <div className="mb-6 grid max-h-80 grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-4">
+            {Array.from(balances.entries()).map(([unitId, bal]) => {
               const u = units.get(unitId)
               return (
                 <Card key={unitId} className="p-3">

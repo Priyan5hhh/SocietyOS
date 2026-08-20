@@ -61,7 +61,6 @@ export default function Notices() {
   const [pinned, setPinned] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiNote, setAiNote] = useState<string | null>(null)
-  const [suggestedAudience, setSuggestedAudience] = useState<"residents" | "guards" | "both" | null>(null)
 
   // Read receipts (item 15) — notice_recipients.delivery_status is populated
   // by societyos-api from WhatsApp Cloud API status webhooks (this is
@@ -138,16 +137,14 @@ export default function Notices() {
     if (!roughNote.trim()) return
     setAiLoading(true)
     setAiNote(null)
-    setSuggestedAudience(null)
     try {
       const { draft, ai_provider } = await api.post<{
-        draft: { title: string; body: string; suggested_audience: "residents" | "guards" | "both" }
+        draft: { title: string; body: string }
         ai_provider: string
       }>("/api/notices/ai-draft", { rough_note: roughNote })
       setTitle(draft.title)
       setBody(draft.body)
       setAiNote(`Polished by AI (${ai_provider}) — review before posting.`)
-      if (draft.suggested_audience !== "residents") setSuggestedAudience(draft.suggested_audience)
     } catch {
       setAiNote("AI suggestion unavailable — write it manually below.")
     } finally {
@@ -168,7 +165,6 @@ export default function Notices() {
       setBody("")
       setPinned(false)
       setAiNote(null)
-      setSuggestedAudience(null)
     } catch (err) {
       setError(errorMessage(err, "Failed to post notice"))
     } finally {
@@ -297,12 +293,6 @@ export default function Notices() {
               <Sparkles size={14} /> {aiLoading ? "Polishing… (up to a minute)" : "Polish with AI"}
             </button>
             {aiNote && <p className="mt-1 text-xs text-ink-500">{aiNote}</p>}
-            {suggestedAudience && (
-              <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
-                <Sparkles size={11} />
-                Suggested: also notify {suggestedAudience === "both" ? "residents and guards" : "guards"}
-              </p>
-            )}
           </div>
           <div>
             <Label htmlFor="n-title">Title</Label>
