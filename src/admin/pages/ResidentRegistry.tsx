@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { Plus, Search, Pencil, AlertCircle, UploadCloud, AlertTriangle } from "lucide-react"
+import { Plus, Search, Pencil, AlertCircle, UploadCloud, AlertTriangle, Send, CheckCircle2 } from "lucide-react"
 import { PageHeader } from "@/admin/components/PageHeader"
 import { Card } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
@@ -14,6 +14,7 @@ import { NoResidentsIllustration } from "@/components/illustrations"
 import { BulkSetupModal } from "@/admin/components/BulkSetupModal"
 import { formatDate } from "@/lib/utils"
 import { api } from "@/lib/services/api"
+import { errorMessage } from "@/lib/utils"
 
 interface Unit {
   id: string
@@ -31,6 +32,8 @@ interface Resident {
   photo_imagekit_url: string | null
   joined_at: string
   units: { block: string; unit_number: string } | null
+  portal_invited_at?: string | null
+  portal_activated_at?: string | null
 }
 
 interface ResidentForm {
@@ -60,6 +63,10 @@ export default function ResidentRegistry() {
   const [editing, setEditing] = useState<Resident | null>(null)
   const [form, setForm] = useState<ResidentForm>(emptyForm())
 
+  const [inviting, setInviting] = useState<Resident | null>(null)
+  const [inviteSaving, setInviteSaving] = useState(false)
+  const [inviteError, setInviteError] = useState<string | null>(null)
+
   async function loadAll() {
     setLoading(true)
     setError(null)
@@ -71,7 +78,7 @@ export default function ResidentRegistry() {
       setResidents(residentsRes.residents)
       setUnits(unitsRes.units)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load residents")
+      setError(errorMessage(err, "Failed to load residents"))
     } finally {
       setLoading(false)
     }
@@ -154,9 +161,23 @@ export default function ResidentRegistry() {
       }
       setModalOpen(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save resident")
+      setError(errorMessage(err, "Failed to save resident"))
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleInvite(r: Resident) {
+    setInviteSaving(true)
+    setInviteError(null)
+    try {
+      const { resident } = await api.post<{ resident: Resident }>(`/api/residents/${r.id}/invite`)
+      setResidents((prev) => prev.map((x) => (x.id === r.id ? { ...x, ...resident } : x)))
+      setInviting((prev) => (prev ? { ...prev, ...resident } : prev))
+    } catch (err) {
+      setInviteError(errorMessage(err, "Failed to invite resident to the portal"))
+    } finally {
+      setInviteSaving(false)
     }
   }
 
@@ -250,13 +271,32 @@ export default function ResidentRegistry() {
                     <Td>{r.members_count}</Td>
                     <Td className="text-ink-500">{formatDate(r.joined_at)}</Td>
                     <Td>
-                      <button
-                        onClick={() => openEdit(r)}
-                        className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100/60 hover:text-ink-900"
-                        aria-label={`Edit ${r.name}`}
-                      >
-                        <Pencil size={16} />
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => {
+                            setInviting(r)
+                            setInviteError(null)
+                          }}
+                          className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100/60 hover:text-ink-900"
+                          aria-label={
+                            r.portal_invited_at ? `Portal invite status for ${r.name}` : `Invite ${r.name} to portal`
+                          }
+                          title={r.portal_invited_at ? "Portal access enabled" : "Invite to portal"}
+                        >
+                          {r.portal_invited_at ? (
+                            <CheckCircle2 size={16} className="text-stamp-600" />
+                          ) : (
+                            <Send size={16} />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => openEdit(r)}
+                          className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100/60 hover:text-ink-900"
+                          aria-label={`Edit ${r.name}`}
+                        >
+                          <Pencil size={16} />
+                        </button>
+                      </div>
                     </Td>
                   </Tr>
                 ))}
@@ -345,6 +385,45 @@ export default function ResidentRegistry() {
       </Modal>
 
       <BulkSetupModal open={bulkModalOpen} onClose={() => setBulkModalOpen(false)} onDone={loadAll} knownBlocks={blocks} />
+
+      <Modal open={!!inviting} onClose={() => setInviting(null)} title="Invite to portal">
+        {inviting && (
+          <div className="space-y-4">
+            {inviteError && (
+              <div className="flex items-start gap-2 rounded-lg border-2 border-rust-500 bg-rust-100 p-3 text-sm text-rust-700">
+                <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                {inviteError}
+              </div>
+            )}
+            {inviting.portal_invited_at ? (
+              <div className="flex items-start gap-2 rounded-lg border-2 border-stamp-500 bg-stamp-100 p-3 text-sm text-stamp-700">
+                <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
+                <div>
+                  Portal access enabled for <strong>{inviting.name}</strong>. They can now log in with{" "}
+                  <span className="font-mono">{inviting.phone}</span> at{" "}
+                  <span className="font-mono">/resident/login</span>.
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-ink-700">
+                This flips on phone+OTP login for <strong>{inviting.name}</strong> using the number already on file (
+                <span className="font-mono">{inviting.phone}</span>). No approval queue — since you already vouched
+                for this resident by adding them here, this is the only step needed.
+              </p>
+            )}
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="secondary" onClick={() => setInviting(null)}>
+                {inviting.portal_invited_at ? "Done" : "Cancel"}
+              </Button>
+              {!inviting.portal_invited_at && (
+                <Button type="button" onClick={() => handleInvite(inviting)} disabled={inviteSaving}>
+                  {inviteSaving ? "Inviting…" : "Invite to portal"}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Plus, Pin, Sparkles, AlertCircle } from "lucide-react"
+import { Plus, Pin, Sparkles, AlertCircle, ChevronDown, ChevronUp, Eye } from "lucide-react"
 import { PageHeader } from "@/admin/components/PageHeader"
 import { Card } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
@@ -10,6 +10,8 @@ import { TableSkeleton } from "@/components/ui/Skeleton"
 import { NoNoticesIllustration } from "@/components/illustrations"
 import { formatDate } from "@/lib/utils"
 import { api } from "@/lib/services/api"
+import { getStaffSupabase } from "@/lib/services/supabase"
+import { errorMessage } from "@/lib/utils"
 
 interface Notice {
   id: string
@@ -17,6 +19,33 @@ interface Notice {
   body: string
   pinned: boolean
   posted_at: string
+}
+
+type DeliveryStatus = "pending" | "sent" | "delivered" | "read" | "failed"
+
+interface RecipientRow {
+  notice_id: string
+  resident_id: string
+  delivery_status: DeliveryStatus
+}
+
+interface ResidentLabel {
+  id: string
+  name: string
+  unitLabel: string
+}
+
+interface RecipientCounts {
+  total: number
+  pending: number
+  sent: number
+  delivered: number
+  read: number
+  failed: number
+}
+
+function emptyCounts(): RecipientCounts {
+  return { total: 0, pending: 0, sent: 0, delivered: 0, read: 0, failed: 0 }
 }
 
 export default function Notices() {
@@ -34,16 +63,70 @@ export default function Notices() {
   const [aiNote, setAiNote] = useState<string | null>(null)
   const [suggestedAudience, setSuggestedAudience] = useState<"residents" | "guards" | "both" | null>(null)
 
+  // Read receipts (item 15) — notice_recipients.delivery_status is populated
+  // by societyos-api from WhatsApp Cloud API status webhooks (this is
+  // WhatsApp's own blue-tick "read" state, not an in-app view event — there
+  // is no resident-facing notices screen yet to generate that signal). This
+  // reads straight from Supabase (admin staff JWT, RLS-scoped to the
+  // society) since societyos-api doesn't expose a recipients rollup route.
+  const [recipientCounts, setRecipientCounts] = useState<Map<string, RecipientCounts>>(new Map())
+  const [recipientsByNotice, setRecipientsByNotice] = useState<Map<string, RecipientRow[]>>(new Map())
+  const [residentLabels, setResidentLabels] = useState<Map<string, ResidentLabel>>(new Map())
+  const [expandedNotice, setExpandedNotice] = useState<string | null>(null)
+  const [receiptsError, setReceiptsError] = useState<string | null>(null)
+
   async function load() {
     setLoading(true)
     setError(null)
     try {
       const { notices } = await api.get<{ notices: Notice[] }>("/api/notices")
       setNotices(notices)
+      await loadReceipts(notices.map((n) => n.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load notices")
+      setError(errorMessage(err, "Failed to load notices"))
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadReceipts(noticeIds: string[]) {
+    if (noticeIds.length === 0) return
+    setReceiptsError(null)
+    try {
+      const sb = getStaffSupabase()
+      const [{ data: recipients, error: rErr }, { data: residents, error: resErr }, { data: units, error: uErr }] =
+        await Promise.all([
+          sb.from("notice_recipients").select("notice_id, resident_id, delivery_status").in("notice_id", noticeIds),
+          sb.from("residents").select("id, name, unit_id"),
+          sb.from("units").select("id, block, unit_number"),
+        ])
+      if (rErr) throw rErr
+      if (resErr) throw resErr
+      if (uErr) throw uErr
+
+      const unitLabelById = new Map((units ?? []).map((u: { id: string; block: string; unit_number: string }) => [u.id, `${u.block}-${u.unit_number}`]))
+      const labels = new Map<string, ResidentLabel>()
+      for (const r of (residents ?? []) as { id: string; name: string; unit_id: string }[]) {
+        labels.set(r.id, { id: r.id, name: r.name, unitLabel: unitLabelById.get(r.unit_id) ?? "—" })
+      }
+      setResidentLabels(labels)
+
+      const byNotice = new Map<string, RecipientRow[]>()
+      const counts = new Map<string, RecipientCounts>()
+      for (const row of (recipients ?? []) as RecipientRow[]) {
+        const list = byNotice.get(row.notice_id) ?? []
+        list.push(row)
+        byNotice.set(row.notice_id, list)
+
+        const c = counts.get(row.notice_id) ?? emptyCounts()
+        c.total += 1
+        c[row.delivery_status] += 1
+        counts.set(row.notice_id, c)
+      }
+      setRecipientsByNotice(byNotice)
+      setRecipientCounts(counts)
+    } catch (err) {
+      setReceiptsError(errorMessage(err, "Failed to load read receipts"))
     }
   }
 
@@ -87,7 +170,7 @@ export default function Notices() {
       setAiNote(null)
       setSuggestedAudience(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to post notice")
+      setError(errorMessage(err, "Failed to post notice"))
     } finally {
       setSaving(false)
     }
@@ -136,7 +219,56 @@ export default function Notices() {
                   {n.pinned && <Pin size={14} className="mt-0.5 shrink-0 fill-amber-500 text-amber-600" />}
                 </div>
                 <p className="mt-2 text-sm text-ink-500">{n.body}</p>
-                <div className="mt-4 flex items-center justify-end text-xs text-ink-300">
+
+                {receiptsError ? (
+                  <p className="mt-4 text-xs text-rust-600">{receiptsError}</p>
+                ) : (
+                  (() => {
+                    const counts = recipientCounts.get(n.id)
+                    if (!counts || counts.total === 0) return null
+                    const unread = (recipientsByNotice.get(n.id) ?? []).filter((r) => r.delivery_status !== "read")
+                    const isExpanded = expandedNotice === n.id
+                    return (
+                      <div className="mt-4 border-t border-ink-100 pt-3">
+                        <div className="flex items-center gap-1.5 text-xs text-ink-500">
+                          <Eye size={13} />
+                          <span>
+                            {counts.sent + counts.delivered + counts.read} sent · {counts.delivered + counts.read} delivered ·{" "}
+                            <span className="font-medium text-ink-700">{counts.read} read</span>
+                            {counts.failed > 0 && ` · ${counts.failed} failed`}
+                          </span>
+                        </div>
+                        {unread.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setExpandedNotice(isExpanded ? null : n.id)}
+                            className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-stamp-600 hover:underline"
+                          >
+                            {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                            {unread.length} haven't read this yet
+                          </button>
+                        )}
+                        {isExpanded && (
+                          <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto rounded-md bg-paper-50 p-2 text-xs text-ink-700">
+                            {unread.map((r) => {
+                              const label = residentLabels.get(r.resident_id)
+                              return (
+                                <li key={r.resident_id} className="flex items-center justify-between gap-2">
+                                  <span>
+                                    {label?.name ?? "Unknown resident"} <span className="text-ink-400">({label?.unitLabel ?? "—"})</span>
+                                  </span>
+                                  <span className="capitalize text-ink-400">{r.delivery_status}</span>
+                                </li>
+                              )
+                            })}
+                          </ul>
+                        )}
+                      </div>
+                    )
+                  })()
+                )}
+
+                <div className="mt-3 flex items-center justify-end text-xs text-ink-300">
                   <span>{formatDate(n.posted_at)}</span>
                 </div>
               </Card>

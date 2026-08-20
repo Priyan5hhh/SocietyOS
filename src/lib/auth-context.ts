@@ -5,6 +5,7 @@ export interface AuthContextValue {
   session: Session | null
   login: (email: string, password: string) => Promise<Session>
   logout: () => void
+  setSession: (session: Session) => void
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

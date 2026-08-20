@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from "react-router-dom"
-import { UserPlus, ListChecks, LogOut } from "lucide-react"
+import { UserPlus, ListChecks, LogOut, Siren } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { HelpChatWidget } from "@/components/ui/HelpChatWidget"
 import { Logo } from "@/components/ui/Logo"
@@ -61,6 +61,17 @@ export default function GuardLayout() {
         >
           <ListChecks size={26} />
           Visitor log
+        </NavLinkTransition>
+        <NavLinkTransition
+          to="/guard/alerts"
+          className={({ isActive }) =>
+            `flex flex-1 flex-col items-center justify-center gap-1 text-xs font-medium ${
+              isActive ? "text-ink-900" : "text-ink-300"
+            }`
+          }
+        >
+          <Siren size={26} />
+          Alerts
         </NavLinkTransition>
       </nav>
     </div>

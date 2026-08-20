@@ -10,6 +10,7 @@ import { formatDate, formatINR } from "@/lib/utils"
 import { api } from "@/lib/services/api"
 import { useCachedFetch } from "@/lib/useCachedFetch"
 import { DashboardSkeleton } from "@/components/ui/Skeleton"
+import { errorMessage } from "@/lib/utils"
 
 interface TicketRow {
   id: string
@@ -80,7 +81,7 @@ export default function DashboardHome() {
         setResidents(r.residents)
         setCycles(c.bill_cycles)
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load dashboard")
+        setError(errorMessage(err, "Failed to load dashboard"))
       } finally {
         setLoading(false)
       }

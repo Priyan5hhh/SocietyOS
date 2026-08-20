@@ -7,6 +7,7 @@ import { CameraCapture } from "@/components/ui/CameraCapture"
 import { uploadImage } from "@/lib/services/storage"
 import { api } from "@/lib/services/api"
 import { useNavigate } from "react-router-dom"
+import { errorMessage } from "@/lib/utils"
 
 type VisitorPurpose = "guest" | "delivery" | "cab" | "service" | "other"
 
@@ -102,7 +103,7 @@ export default function LogVisitor() {
       setSavedToast(true)
       setTimeout(() => navigate("/guard/log"), 900)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to log visitor")
+      setError(errorMessage(err, "Failed to log visitor"))
       setSaving(false)
     }
   }

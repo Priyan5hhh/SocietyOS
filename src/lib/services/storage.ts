@@ -29,7 +29,7 @@ async function authenticator() {
 
 export async function uploadImage(
   file: File,
-  bucket: "visitor-photos" | "resident-photos" | "notice-attachments",
+  bucket: "visitor-photos" | "resident-photos" | "notice-attachments" | "amenity-photos" | "ticket-photos" | "documents",
 ): Promise<UploadResult> {
   try {
     if (!publicKey) throw new Error("VITE_IMAGEKIT_PUBLIC_KEY not configured")

@@ -13,8 +13,9 @@ import { api } from "@/lib/services/api"
 import { queueReminder, listReminders, latestByTarget, type Reminder } from "@/lib/reminders"
 import { useTicketDraft, TICKET_CREATED_EVENT_NAME } from "@/admin/context/TicketDraftContext"
 import { useCachedFetch } from "@/lib/useCachedFetch"
+import { errorMessage } from "@/lib/utils"
 
-type TicketStatus = "new" | "in_progress" | "resolved" | "reopened"
+type TicketStatus = "new" | "assigned" | "in_progress" | "resolved" | "reopened"
 type TicketPriority = "low" | "medium" | "high"
 
 interface Ticket {
@@ -28,14 +29,29 @@ interface Ticket {
   resident_name: string | null
   created_at: string
   units: { block: string; unit_number: string } | null
+  assigned_to_staff_id: string | null
+}
+
+interface AssignableStaff {
+  id: string
+  name: string
+  role: "admin" | "guard" | "finance" | "facility" | "worker"
+  active: boolean
 }
 
 const priorityTone = { high: "rust", medium: "amber", low: "ink" } as const
-const statusTone = { new: "rust", in_progress: "amber", resolved: "stamp", reopened: "rust" } as const
-const statusLabel = { new: "New", in_progress: "In progress", resolved: "Resolved", reopened: "Reopened" }
+const statusTone = { new: "rust", assigned: "amber", in_progress: "amber", resolved: "stamp", reopened: "rust" } as const
+const statusLabel = {
+  new: "New",
+  assigned: "Assigned",
+  in_progress: "In progress",
+  resolved: "Resolved",
+  reopened: "Reopened",
+}
 
 const nextStatus: Record<TicketStatus, TicketStatus | null> = {
   new: "in_progress",
+  assigned: "in_progress",
   in_progress: "resolved",
   resolved: null,
   reopened: "in_progress",
@@ -55,6 +71,9 @@ export default function TicketQueue() {
   const [reminders, setReminders] = useState<Map<string, Reminder>>(new Map())
   const [nudging, setNudging] = useState<string | null>(null)
 
+  const [staff, setStaff] = useState<AssignableStaff[]>([])
+  const [assigning, setAssigning] = useState<string | null>(null)
+
   async function load() {
     setLoading(true)
     setError(null)
@@ -64,7 +83,7 @@ export default function TicketQueue() {
       )
       setTickets(ticketsRes.tickets)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load tickets")
+      setError(errorMessage(err, "Failed to load tickets"))
     } finally {
       setLoading(false)
     }
@@ -74,6 +93,13 @@ export default function TicketQueue() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter])
+
+  useEffect(() => {
+    api
+      .get<{ staff: AssignableStaff[] }>("/api/staff")
+      .then(({ staff }) => setStaff(staff.filter((s) => s.active)))
+      .catch(() => {})
+  }, [])
 
   // Live-prepend a ticket created via the floating panel, even if it was
   // opened/saved while the admin was on a different page.
@@ -137,7 +163,22 @@ export default function TicketQueue() {
       const { ticket } = await api.patch<{ ticket: Ticket }>(`/api/tickets/${t.id}`, { status: to })
       setTickets((prev) => prev.map((x) => (x.id === t.id ? ticket : x)))
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update ticket")
+      setError(errorMessage(err, "Failed to update ticket"))
+    }
+  }
+
+  async function assign(t: Ticket, staffId: string) {
+    setAssigning(t.id)
+    setError(null)
+    try {
+      const patch: Record<string, unknown> = { assigned_to_staff_id: staffId || null }
+      if (staffId && t.status === "new") patch.status = "assigned"
+      const { ticket } = await api.patch<{ ticket: Ticket }>(`/api/tickets/${t.id}`, patch)
+      setTickets((prev) => prev.map((x) => (x.id === t.id ? ticket : x)))
+    } catch (err) {
+      setError(errorMessage(err, "Failed to assign ticket"))
+    } finally {
+      setAssigning(null)
     }
   }
 
@@ -147,7 +188,7 @@ export default function TicketQueue() {
       const { reminder } = await queueReminder("ticket", t.id, kind)
       setReminders((prev) => new Map(prev).set(t.id, reminder))
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to queue reminder")
+      setError(errorMessage(err, "Failed to queue reminder"))
     } finally {
       setNudging(null)
     }
@@ -173,6 +214,7 @@ export default function TicketQueue() {
             <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)} className="w-44">
               <option value="all">All statuses</option>
               <option value="new">New</option>
+              <option value="assigned">Assigned</option>
               <option value="in_progress">In progress</option>
               <option value="resolved">Resolved</option>
               <option value="reopened">Reopened</option>
@@ -264,6 +306,23 @@ export default function TicketQueue() {
                           <span className="text-xs text-ink-400">Reminded {formatTimeAgo(lastReminder.created_at)}</span>
                         )}
                       </div>
+
+                      <div className="mt-3 flex items-center gap-2">
+                        <span className="text-xs font-medium text-ink-500">Assigned to</span>
+                        <Select
+                          value={t.assigned_to_staff_id ?? ""}
+                          disabled={assigning === t.id}
+                          onChange={(e) => assign(t, e.target.value)}
+                          className="h-8 w-52 text-xs"
+                        >
+                          <option value="">Unassigned</option>
+                          {staff.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name} ({s.role})
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
                     </div>
 
                     <div className="flex shrink-0 flex-col items-end gap-2">
@@ -271,7 +330,7 @@ export default function TicketQueue() {
                       <Stamp tone={statusTone[t.status]}>{statusLabel[t.status]}</Stamp>
                       {nextStatus[t.status] && (
                         <button onClick={() => advance(t)} className="mt-1 text-xs font-medium text-ink-700 hover:underline">
-                          {t.status === "new" ? "Mark in progress →" : "Mark resolved →"}
+                          {t.status === "new" || t.status === "assigned" ? "Mark in progress →" : "Mark resolved →"}
                         </button>
                       )}
                     </div>

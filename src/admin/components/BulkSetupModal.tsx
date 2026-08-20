@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/Modal"
 import { Button } from "@/components/ui/Button"
 import { Label, Select, Textarea } from "@/components/ui/Input"
 import { api } from "@/lib/services/api"
+import { errorMessage } from "@/lib/utils"
 
 interface Mapping {
   name: string | null
@@ -91,7 +92,7 @@ export function BulkSetupModal({ open, onClose, onDone, knownBlocks }: BulkSetup
       setRangeResult(`Created ${res.created} of ${res.requested} units (rest already existed).`)
       onDone()
     } catch (err) {
-      setRangeError(err instanceof Error ? err.message : "Failed to generate units")
+      setRangeError(errorMessage(err, "Failed to generate units"))
     } finally {
       setRangeLoading(false)
     }
@@ -130,7 +131,7 @@ export function BulkSetupModal({ open, onClose, onDone, knownBlocks }: BulkSetup
       )
       setMapping(res.mapping)
     } catch (err) {
-      setMappingError(err instanceof Error ? err.message : "AI mapping failed — map columns manually below.")
+      setMappingError(errorMessage(err, "AI mapping failed — map columns manually below."))
       setMapping({ name: null, phone: null, block: null, unit_number: null, combined_unit: null, is_owner: null, members_count: null })
     } finally {
       setMappingLoading(false)
@@ -168,7 +169,7 @@ export function BulkSetupModal({ open, onClose, onDone, knownBlocks }: BulkSetup
       setImportSummary(res)
       onDone()
     } catch (err) {
-      setMappingError(err instanceof Error ? err.message : "Import failed")
+      setMappingError(errorMessage(err, "Import failed"))
     } finally {
       setImporting(false)
     }

@@ -6,6 +6,7 @@ import { Input, Label, PasswordInput } from "@/components/ui/Input"
 import { AuthHero } from "@/components/ui/AuthHero"
 import { AuthChrome } from "@/components/ui/AuthChrome"
 import { Logo } from "@/components/ui/Logo"
+import { errorMessage } from "@/lib/utils"
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL as string | undefined
 
@@ -40,7 +41,7 @@ export default function Signup() {
       }
       setDone(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Signup failed")
+      setError(errorMessage(err, "Signup failed"))
     } finally {
       setLoading(false)
     }

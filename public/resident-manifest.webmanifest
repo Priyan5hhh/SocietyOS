@@ -1,0 +1,15 @@
+{
+  "name": "SocietyOS Resident",
+  "short_name": "SocietyOS",
+  "description": "Dues, amenities, notices, and alerts for your society — in one place.",
+  "start_url": "/resident",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3ede1",
+  "theme_color": "#3b2418",
+  "icons": [
+    { "src": "/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

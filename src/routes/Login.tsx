@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom"
 import { LinkTransition } from "@/components/ui/NavTransition"
 import { AlertCircle } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { homePathFor } from "@/routes/RequireAuth"
 import { Button } from "@/components/ui/Button"
 import { Input, Label, PasswordInput } from "@/components/ui/Input"
 import { AuthHero } from "@/components/ui/AuthHero"
 import { AuthChrome } from "@/components/ui/AuthChrome"
 import { Logo } from "@/components/ui/Logo"
+import { errorMessage } from "@/lib/utils"
 
 const heroPoints = [
   "One dashboard for billing, tickets and notices",
@@ -29,10 +31,9 @@ export default function Login() {
     setLoading(true)
     try {
       const session = await login(email, password)
-      if (session.kind === "platform") navigate("/platform")
-      else navigate(session.role === "admin" ? "/admin" : "/guard")
+      navigate(homePathFor(session))
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Sign in failed")
+      setError(errorMessage(err, "Sign in failed"))
     } finally {
       setLoading(false)
     }

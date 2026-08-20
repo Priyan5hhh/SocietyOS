@@ -11,6 +11,17 @@ import {
   UserCog,
   PanelLeftClose,
   PanelLeftOpen,
+  ShieldCheck,
+  CreditCard,
+  CalendarDays,
+  SearchCheck,
+  ShieldAlert,
+  BookOpen,
+  AlertTriangle,
+  ScrollText,
+  FileText,
+  Vote,
+  Siren,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { Avatar } from "@/components/ui/Avatar"
@@ -25,8 +36,19 @@ const nav = [
   { to: "/admin/residents", label: "Resident Registry", icon: Users },
   { to: "/admin/billing", label: "Billing", icon: Receipt },
   { to: "/admin/tickets", label: "Ticket Queue", icon: Ticket },
+  { to: "/admin/intake-review", label: "Intake Review", icon: SearchCheck },
+  { to: "/admin/visitors", label: "Visitor Accountability", icon: ShieldCheck },
+  { to: "/admin/security", label: "Security Signals", icon: ShieldAlert },
+  { to: "/admin/alerts", label: "Active Alerts", icon: Siren },
   { to: "/admin/notices", label: "Notices", icon: Megaphone },
+  { to: "/admin/amenities", label: "Amenities", icon: CalendarDays },
+  { to: "/admin/ledger", label: "Ledger", icon: BookOpen },
+  { to: "/admin/defaulters", label: "Defaulters", icon: AlertTriangle },
+  { to: "/admin/audit-log", label: "Audit Log", icon: ScrollText },
+  { to: "/admin/documents", label: "Documents", icon: FileText },
+  { to: "/admin/elections", label: "Elections", icon: Vote },
   { to: "/admin/staff", label: "Staff", icon: UserCog },
+  { to: "/admin/subscription", label: "Subscription", icon: CreditCard },
 ]
 
 const SIDEBAR_STORAGE_KEY = "societyos-sidebar-collapsed"

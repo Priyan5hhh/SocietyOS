@@ -7,6 +7,7 @@ import { TableSkeleton } from "@/components/ui/Skeleton"
 import { NoVisitorsIllustration } from "@/components/illustrations"
 import { formatTime } from "@/lib/utils"
 import { api } from "@/lib/services/api"
+import { errorMessage } from "@/lib/utils"
 
 interface Visitor {
   id: string
@@ -40,7 +41,7 @@ export default function VisitorLog() {
       const { visitors } = await api.get<{ visitors: Visitor[] }>("/api/visitors?today=true")
       setVisitors(visitors)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load visitors")
+      setError(errorMessage(err, "Failed to load visitors"))
     } finally {
       setLoading(false)
     }
@@ -55,7 +56,7 @@ export default function VisitorLog() {
       const { visitor } = await api.post<{ visitor: Visitor }>(`/api/visitors/${id}/checkout`)
       setVisitors((prev) => prev.map((v) => (v.id === id ? visitor : v)))
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to check out visitor")
+      setError(errorMessage(err, "Failed to check out visitor"))
     }
   }
 

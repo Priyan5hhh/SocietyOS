@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { HelpCircle, Send } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, errorMessage } from "@/lib/utils"
 import { api } from "@/lib/services/api"
 import { useClickOutside } from "@/lib/hooks/useClickOutside"
 
@@ -49,7 +49,7 @@ export function HelpChatWidget({
       })
       setTurns((prev) => [...prev, { role: "assistant", content: reply }])
     } catch (err) {
-      setError(err instanceof Error ? err.message : "AI help is unavailable right now.")
+      setError(errorMessage(err, "AI help is unavailable right now."))
     } finally {
       setLoading(false)
     }

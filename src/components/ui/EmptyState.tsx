@@ -6,7 +6,7 @@ export function EmptyState({
   description,
   action,
 }: {
-  illustration: ReactNode
+  illustration?: ReactNode
   title: string
   description: string
   action?: ReactNode

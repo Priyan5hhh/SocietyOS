@@ -12,16 +12,49 @@ import {
   PauseCircle,
   PlayCircle,
   Trash2,
+  CreditCard,
 } from "lucide-react"
 import { Card } from "@/components/ui/Card"
 import { TableSkeleton } from "@/components/ui/Skeleton"
 import { Button } from "@/components/ui/Button"
 import { Stamp } from "@/components/ui/Stamp"
 import { Modal } from "@/components/ui/Modal"
+import { Select } from "@/components/ui/Input"
 import { StatTile } from "@/admin/components/StatTile"
 import { useAuth } from "@/lib/auth-context"
-import { formatDate, formatINR } from "@/lib/utils"
+import { errorMessage, formatDate, formatINR } from "@/lib/utils"
 import { api } from "@/lib/services/api"
+
+interface Plan {
+  id: string
+  name: string
+  price_paise: number
+  billing_cycle: "monthly" | "annual"
+  unit_limit: number | null
+  features: string[]
+}
+
+type SubscriptionStatus = "trialing" | "active" | "past_due" | "grace_period" | "suspended" | "cancelled"
+
+interface Subscription {
+  id: string
+  plan_id: string
+  status: SubscriptionStatus
+  current_period_start: string
+  current_period_end: string
+  trial_ends_at: string | null
+  reminder_days_before: number
+  plans: Plan
+}
+
+const subStatusTone: Record<SubscriptionStatus, "stamp" | "amber" | "rust" | "ink"> = {
+  trialing: "amber",
+  active: "stamp",
+  past_due: "rust",
+  grace_period: "amber",
+  suspended: "rust",
+  cancelled: "ink",
+}
 
 interface SignupRequest {
   id: string
@@ -69,6 +102,13 @@ export default function PlatformAdmin() {
   const [deleteTarget, setDeleteTarget] = useState<Society | null>(null)
   const [confirmName, setConfirmName] = useState("")
 
+  const [plans, setPlans] = useState<Plan[]>([])
+  const [planTarget, setPlanTarget] = useState<Society | null>(null)
+  const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [subLoading, setSubLoading] = useState(false)
+  const [subSaving, setSubSaving] = useState(false)
+  const [subForm, setSubForm] = useState({ plan_id: "", status: "active" as SubscriptionStatus, current_period_end: "" })
+
   async function load() {
     setLoading(true)
     setError(null)
@@ -82,7 +122,7 @@ export default function PlatformAdmin() {
       setSocieties(socRes.societies)
       setStats(statsRes)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load platform data")
+      setError(errorMessage(err, "Failed to load platform data"))
     } finally {
       setLoading(false)
     }
@@ -90,7 +130,52 @@ export default function PlatformAdmin() {
 
   useEffect(() => {
     load()
+    api
+      .get<{ plans: Plan[] }>("/api/platform/plans")
+      .then(({ plans }) => setPlans(plans))
+      .catch(() => {})
   }, [])
+
+  async function openPlanManager(society: Society) {
+    setPlanTarget(society)
+    setSubLoading(true)
+    setSubscription(null)
+    try {
+      const { subscription } = await api.get<{ subscription: Subscription }>(`/api/platform/societies/${society.id}/subscription`)
+      setSubscription(subscription)
+      setSubForm({
+        plan_id: subscription.plan_id,
+        status: subscription.status,
+        current_period_end: subscription.current_period_end.slice(0, 10),
+      })
+    } catch (err) {
+      setError(errorMessage(err, "Failed to load subscription"))
+    } finally {
+      setSubLoading(false)
+    }
+  }
+
+  async function saveSubscription() {
+    if (!planTarget) return
+    setSubSaving(true)
+    setError(null)
+    try {
+      const { subscription: updated } = await api.patch<{ subscription: Subscription }>(
+        `/api/platform/societies/${planTarget.id}/subscription`,
+        {
+          plan_id: subForm.plan_id,
+          status: subForm.status,
+          current_period_end: new Date(subForm.current_period_end).toISOString(),
+        },
+      )
+      setSubscription(updated)
+      setPlanTarget(null)
+    } catch (err) {
+      setError(errorMessage(err, "Failed to update subscription"))
+    } finally {
+      setSubSaving(false)
+    }
+  }
 
   async function approve(id: string) {
     setBusyId(id)
@@ -99,7 +184,7 @@ export default function PlatformAdmin() {
       await api.post(`/api/platform/signup-requests/${id}/approve`)
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to approve")
+      setError(errorMessage(err, "Failed to approve"))
     } finally {
       setBusyId(null)
     }
@@ -112,7 +197,7 @@ export default function PlatformAdmin() {
       await api.post(`/api/platform/signup-requests/${id}/reject`)
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to reject")
+      setError(errorMessage(err, "Failed to reject"))
     } finally {
       setBusyId(null)
     }
@@ -126,7 +211,7 @@ export default function PlatformAdmin() {
       await api.patch(`/api/platform/societies/${society.id}`, { status: nextStatus })
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update society status")
+      setError(errorMessage(err, "Failed to update society status"))
     } finally {
       setBusyId(null)
     }
@@ -142,7 +227,7 @@ export default function PlatformAdmin() {
       setConfirmName("")
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete society")
+      setError(errorMessage(err, "Failed to delete society"))
     } finally {
       setBusyId(null)
     }
@@ -293,6 +378,14 @@ export default function PlatformAdmin() {
                   <Button
                     type="button"
                     variant="secondary"
+                    onClick={() => openPlanManager(s)}
+                    title="Manage subscription"
+                  >
+                    <CreditCard size={16} /> Plan
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
                     disabled={busyId === s.id}
                     onClick={() => toggleStatus(s)}
                     title={s.status === "active" ? "Suspend" : "Reactivate"}
@@ -366,6 +459,58 @@ export default function PlatformAdmin() {
               </Button>
             </div>
           </div>
+        )}
+      </Modal>
+      <Modal open={planTarget !== null} onClose={() => setPlanTarget(null)} title={planTarget ? `Subscription — ${planTarget.name}` : "Subscription"}>
+        {subLoading ? (
+          <TableSkeleton rows={3} cols={1} />
+        ) : subscription ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-ink-500">Current status</span>
+              <Stamp tone={subStatusTone[subscription.status]}>{subscription.status.replace("_", " ")}</Stamp>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-ink-500">Plan</label>
+              <Select value={subForm.plan_id} onChange={(e) => setSubForm({ ...subForm, plan_id: e.target.value })}>
+                {plans.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} — {formatINR(p.price_paise / 100)}/{p.billing_cycle === "monthly" ? "mo" : "yr"}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-ink-500">Status</label>
+              <Select value={subForm.status} onChange={(e) => setSubForm({ ...subForm, status: e.target.value as SubscriptionStatus })}>
+                <option value="trialing">Trialing</option>
+                <option value="active">Active</option>
+                <option value="past_due">Past due</option>
+                <option value="grace_period">Grace period</option>
+                <option value="suspended">Suspended</option>
+                <option value="cancelled">Cancelled</option>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-ink-500">Renews / expires on</label>
+              <input
+                type="date"
+                value={subForm.current_period_end}
+                onChange={(e) => setSubForm({ ...subForm, current_period_end: e.target.value })}
+                className="w-full rounded-lg border border-ink-100 px-3 py-2 text-sm focus:border-stamp-500 focus:outline-none"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="secondary" onClick={() => setPlanTarget(null)}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={saveSubscription} disabled={subSaving}>
+                {subSaving ? "Saving…" : "Save changes"}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-ink-500">No subscription on file for this society yet.</p>
         )}
       </Modal>
     </div>
