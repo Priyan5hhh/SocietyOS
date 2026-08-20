@@ -59,6 +59,8 @@ export default function Documents() {
   const [file, setFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<DocRow | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -127,15 +129,19 @@ export default function Documents() {
     }
   }
 
-  async function remove(doc: DocRow) {
-    if (!confirm(`Delete "${doc.title}"?`)) return
+  async function remove() {
+    if (!confirmDelete) return
+    setDeleting(true)
     try {
       const sb = getStaffSupabase()
-      const { error: delErr } = await sb.from("documents").delete().eq("id", doc.id)
+      const { error: delErr } = await sb.from("documents").delete().eq("id", confirmDelete.id)
       if (delErr) throw delErr
+      setConfirmDelete(null)
       await load()
     } catch (err) {
       setError(errorMessage(err, "Failed to delete document"))
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -197,7 +203,7 @@ export default function Documents() {
                       </Td>
                       <Td className="text-ink-500">{formatDate(d.created_at)}</Td>
                       <Td>
-                        <button type="button" onClick={() => remove(d)} className="text-ink-400 hover:text-rust-600" aria-label="Delete">
+                        <button type="button" onClick={() => setConfirmDelete(d)} className="text-ink-400 hover:text-rust-600" aria-label="Delete">
                           <Trash2 size={14} />
                         </button>
                       </Td>
@@ -274,6 +280,22 @@ export default function Documents() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal open={!!confirmDelete} onClose={() => setConfirmDelete(null)} title="Delete document">
+        <div className="space-y-4">
+          <p className="text-sm text-ink-700">
+            Permanently delete <strong>{confirmDelete?.title}</strong>? This can't be undone.
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="secondary" onClick={() => setConfirmDelete(null)}>
+              Cancel
+            </Button>
+            <Button type="button" variant="danger" onClick={remove} disabled={deleting}>
+              {deleting ? "Deleting…" : "Delete permanently"}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   )

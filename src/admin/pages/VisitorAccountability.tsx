@@ -18,6 +18,7 @@ interface Visitor {
   name: string
   phone: string
   purpose: string
+  notes: string | null
   pre_approved: boolean
   check_in_at: string
   check_out_at: string | null
@@ -205,6 +206,7 @@ export default function VisitorAccountability() {
                       <div className="flex items-center gap-1 text-xs text-ink-500">
                         <Phone size={11} /> {v.phone}
                       </div>
+                      {v.notes && <div className="mt-0.5 text-xs italic text-ink-400">"{v.notes}"</div>}
                     </Td>
                     <Td className="font-mono text-xs">
                       {v.units ? `${v.units.block}-${v.units.unit_number}` : "—"}

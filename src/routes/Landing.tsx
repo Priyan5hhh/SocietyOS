@@ -496,6 +496,11 @@ export default function Landing() {
                   </LinkTransition>
                 </li>
                 <li>
+                  <LinkTransition to="/resident/login" className="hover:text-ink-900">
+                    Resident sign in
+                  </LinkTransition>
+                </li>
+                <li>
                   <LinkTransition to="/signup" className="hover:text-ink-900">
                     Sign up your society
                   </LinkTransition>

@@ -47,6 +47,7 @@ export default function LogVisitor() {
   const [phone, setPhone] = useState("")
   const [unitId, setUnitId] = useState("")
   const [purpose, setPurpose] = useState<VisitorPurpose>("guest")
+  const [notes, setNotes] = useState("")
   const [matched, setMatched] = useState<PreApproval | null>(null)
   const [saving, setSaving] = useState(false)
   const [savedToast, setSavedToast] = useState(false)
@@ -99,6 +100,7 @@ export default function LogVisitor() {
         unit_id: unitId || null,
         photo_imagekit_url: photoUrl,
         photo_imagekit_file_id: photoFileId,
+        notes: notes.trim() || null,
       })
       setSavedToast(true)
       setTimeout(() => navigate("/guard/log"), 900)
@@ -225,7 +227,13 @@ export default function LogVisitor() {
 
         <div>
           <Label htmlFor="v-notes">Notes (optional)</Label>
-          <Textarea id="v-notes" placeholder="Vehicle number, extra context…" className="text-base" />
+          <Textarea
+            id="v-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Vehicle number, extra context…"
+            className="text-base"
+          />
         </div>
 
         <Button type="submit" size="lg" className="w-full" disabled={saving}>

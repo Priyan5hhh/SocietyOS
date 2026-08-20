@@ -104,6 +104,12 @@ export default function Login() {
               Sign up here
             </LinkTransition>
           </p>
+          <p className="mt-2 text-center text-sm text-ink-500">
+            Resident?{" "}
+            <LinkTransition to="/resident/login" className="font-medium text-stamp-600 hover:underline">
+              Sign in here
+            </LinkTransition>
+          </p>
         </form>
       </AuthChrome>
     </div>

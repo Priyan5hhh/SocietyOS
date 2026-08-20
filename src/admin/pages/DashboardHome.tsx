@@ -9,6 +9,7 @@ import { AiPill } from "@/components/ui/AiPill"
 import { formatDate, formatINR } from "@/lib/utils"
 import { api } from "@/lib/services/api"
 import { useCachedFetch } from "@/lib/useCachedFetch"
+import { useAuth } from "@/lib/auth-context"
 import { DashboardSkeleton } from "@/components/ui/Skeleton"
 import { errorMessage } from "@/lib/utils"
 
@@ -46,6 +47,8 @@ const priorityTone = { high: "rust", medium: "amber", low: "ink" } as const
 const statusTone = { new: "rust", in_progress: "amber", resolved: "stamp", reopened: "rust" } as const
 
 export default function DashboardHome() {
+  const { session } = useAuth()
+  const societyId = session?.kind === "staff" ? session.society_id : "anon"
   const [tickets, setTickets] = useState<TicketRow[]>([])
   const [dues, setDues] = useState<DueRow[]>([])
   const [notices, setNotices] = useState<NoticeRow[]>([])
@@ -58,7 +61,7 @@ export default function DashboardHome() {
     loading: digestLoading,
     error: digestError,
     refresh: refreshDigest,
-  } = useCachedFetch("dashboard-ai-digest", async () => {
+  } = useCachedFetch(`dashboard-ai-digest:${societyId}`, async () => {
     const { digest } = await api.get<{ digest: string }>("/api/dashboard/ai-digest")
     return digest
   })

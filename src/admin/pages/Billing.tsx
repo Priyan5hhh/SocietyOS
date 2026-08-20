@@ -14,6 +14,7 @@ import { api } from "@/lib/services/api"
 import { getStaffSupabase, getStaffClaims } from "@/lib/services/supabase"
 import { queueReminder, queueBulkReminders, listReminders, latestByTarget, type Reminder } from "@/lib/reminders"
 import { useCachedFetch } from "@/lib/useCachedFetch"
+import { useAuth } from "@/lib/auth-context"
 
 interface BillCycle {
   id: string
@@ -65,6 +66,8 @@ function monthBounds(dateStr: string) {
 }
 
 export default function Billing() {
+  const { session } = useAuth()
+  const societyId = session?.kind === "staff" ? session.society_id : "anon"
   const [cycles, setCycles] = useState<BillCycle[]>([])
   const [dues, setDues] = useState<Due[]>([])
   const [loading, setLoading] = useState(true)
@@ -85,7 +88,7 @@ export default function Billing() {
     loading: aiSummaryLoading,
     error: aiSummaryError,
     refresh: refreshAiSummary,
-  } = useCachedFetch("billing-ai-summary", async () => {
+  } = useCachedFetch(`billing-ai-summary:${societyId}`, async () => {
     const { summary } = await api.get<{ summary: string }>("/api/billing/ai-summary")
     return summary
   })
